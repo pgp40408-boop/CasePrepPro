@@ -3,11 +3,9 @@ import { Case, InterviewState, Message, FeedbackReport } from '../types';
 
 // Helper to get key securely
 const getAiClient = (): GoogleGenAI => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key missing. Please configure it in process.env.API_KEY.");
-  }
-  return new GoogleGenAI({ apiKey });
+  // Guideline: The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  // Guideline: Assume this variable is pre-configured, valid, and accessible.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 // Schema Definition for Interview State

@@ -94,7 +94,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
 
     } catch (error) {
       console.error("Resume analysis failed:", error);
-      alert("Failed to analyze resume. Please check the console or try a different file.");
+      alert("Failed to analyze resume. Please try again.");
     } finally {
       setIsAnalyzing(false);
     }
