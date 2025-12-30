@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { Case, InterviewState, Message, FeedbackReport } from '../types';
+import { Case, InterviewState, Message, FeedbackReport, Industry, CaseType, Difficulty, CaseStyle } from '../types';
 
 // Helper to get key securely
 const getAiClient = (): GoogleGenAI => {
@@ -145,6 +145,149 @@ export const generateInterviewResponse = async (
     };
   }
 };
+
+// --- CASE GENERATION & EXTRACTION ---
+
+// Shared Schema for Case Object
+const caseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    title: { type: Type.STRING },
+    industry: { type: Type.STRING },
+    case_type: { type: Type.STRING },
+    case_style: { type: Type.STRING },
+    difficulty: { type: Type.STRING },
+    ground_truth_json: {
+      type: Type.OBJECT,
+      properties: {
+        overview: { type: Type.STRING, description: "The opening prompt read to the candidate." },
+        framework_buckets: { type: Type.ARRAY, items: { type: Type.STRING } },
+        // Using array of KV pairs because Type.OBJECT requires defined properties in schema
+        math_data_points: { 
+          type: Type.ARRAY, 
+          items: { 
+            type: Type.OBJECT, 
+            properties: {
+              key: { type: Type.STRING },
+              value: { type: Type.STRING }
+            },
+            required: ['key', 'value']
+          },
+          description: "Key numbers provided. e.g. [{key: 'revenue', value: '100M'}]" 
+        },
+        conclusion_key_points: { type: Type.ARRAY, items: { type: Type.STRING } },
+      },
+      required: ['overview', 'framework_buckets', 'math_data_points', 'conclusion_key_points']
+    }
+  },
+  required: ['title', 'industry', 'case_type', 'case_style', 'difficulty', 'ground_truth_json']
+};
+
+export const generateSyntheticCase = async (
+  industry?: string,
+  caseType?: string,
+  difficulty?: string,
+  style?: string
+): Promise<Case> => {
+  const ai = getAiClient();
+  const model = "gemini-3-pro-preview"; 
+
+  const prompt = `
+    Generate a unique, realistic Management Consulting Case Study.
+    
+    Constraints:
+    - Industry: ${industry || "Random, but focus on modern industries like Tech, EV, AI, or BioTech"}
+    - Case Type: ${caseType || "Random"}
+    - Difficulty: ${difficulty || "Intermediate"}
+    - Style: ${style || "Random"}
+
+    Requirements:
+    - The 'math_data_points' should contain 3-5 specific numbers needed to solve a quantitative problem (e.g. key: "Revenue 2024", value: "100M").
+    - The 'overview' should be the initial problem statement given to the candidate.
+    - Ensure the case is solvable within 30 minutes.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: model,
+    contents: { parts: [{ text: prompt }] },
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: caseSchema,
+      temperature: 0.9, 
+    }
+  });
+
+  if (response.text) {
+    return parseCaseResponse(response.text);
+  }
+
+  throw new Error("Failed to generate case");
+};
+
+export const extractCaseFromTranscript = async (transcript: string): Promise<Case> => {
+  const ai = getAiClient();
+  const model = "gemini-3-pro-preview"; // Use Pro to handle large context
+
+  const prompt = `
+    Analyze the following interview transcript and extract a structured Case Study object.
+    
+    TRANSCRIPT START:
+    ${transcript.substring(0, 30000)} 
+    TRANSCRIPT END
+
+    INSTRUCTIONS:
+    1. Infer the 'industry', 'case_type', and 'difficulty' from the context.
+    2. Extract the 'overview' (the initial problem statement).
+    3. Extract 'math_data_points' by finding numbers/facts the interviewer revealed (e.g. "Revenue is $50M").
+    4. Extract 'framework_buckets' based on how the candidate successfully structured the problem.
+    5. Extract 'conclusion_key_points' from the final recommendation.
+    6. Ignore small talk. Focus on the core business problem.
+  `;
+
+  const response = await ai.models.generateContent({
+    model: model,
+    contents: { parts: [{ text: prompt }] },
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: caseSchema,
+      temperature: 0.2, // Low temp for extraction accuracy
+    }
+  });
+
+  if (response.text) {
+    return parseCaseResponse(response.text);
+  }
+  
+  throw new Error("Failed to extract case from transcript");
+}
+
+// Helper to transform schema output to app Type
+const parseCaseResponse = (jsonString: string): Case => {
+  const rawData = JSON.parse(jsonString);
+    
+  // Transform math_data_points array back to math_data object for the application
+  const math_data: Record<string, string | number> = {};
+  if (rawData.ground_truth_json?.math_data_points) {
+    rawData.ground_truth_json.math_data_points.forEach((item: {key: string, value: string}) => {
+      math_data[item.key] = item.value;
+    });
+  }
+
+  return {
+    id: `generated_${Date.now()}`,
+    title: rawData.title,
+    industry: rawData.industry,
+    case_type: rawData.case_type,
+    case_style: rawData.case_style,
+    difficulty: rawData.difficulty,
+    ground_truth_json: {
+      overview: rawData.ground_truth_json.overview,
+      framework_buckets: rawData.ground_truth_json.framework_buckets,
+      conclusion_key_points: rawData.ground_truth_json.conclusion_key_points,
+      math_data: math_data
+    }
+  } as Case;
+}
 
 // --- FEEDBACK / GRADING ENGINE ---
 

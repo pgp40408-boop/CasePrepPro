@@ -1,3 +1,4 @@
+
 // ------------------------------------------------------------------
 // DATABASE SCHEMA (Simulated for Frontend)
 // ------------------------------------------------------------------
@@ -17,7 +18,10 @@ export type Industry =
   | 'Energy & Environment'
   | 'Industrials & Manufacturing'
   | 'Public Sector & Social Impact'
-  | 'Private Equity (PE)';
+  | 'Private Equity (PE)'
+  | 'E-commerce & Digital Marketplaces'
+  | 'Transportation & Logistics'
+  | 'Startups & Venture Capital';
 
 export type CaseType = 
   | 'Profitability' 
