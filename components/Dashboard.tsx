@@ -1,7 +1,7 @@
 import React from 'react';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { UserMetrics } from '../types';
-import { Card, Activity, CheckCircle, BookOpen } from 'lucide-react';
+import { Activity, CheckCircle, BookOpen } from 'lucide-react';
 
 // Mock Metrics for Visualization
 const MOCK_METRICS: UserMetrics = {

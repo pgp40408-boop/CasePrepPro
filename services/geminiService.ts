@@ -3,9 +3,17 @@ import { Case, InterviewState, Message, FeedbackReport } from '../types';
 
 // Helper to get key securely
 const getAiClient = (): GoogleGenAI => {
-  // Guideline: The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-  // Guideline: Assume this variable is pre-configured, valid, and accessible.
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // Check session storage first (User provided via UI), then env var (Dev provided)
+  // sessionStorage is cleared when the tab is closed.
+  const sessionKey = typeof window !== 'undefined' ? sessionStorage.getItem("gemini_api_key") : null;
+  const envKey = process.env.API_KEY;
+  
+  const apiKey = sessionKey || envKey;
+
+  if (!apiKey) {
+    throw new Error("API Key missing. Please provide a key.");
+  }
+  return new GoogleGenAI({ apiKey });
 };
 
 // Schema Definition for Interview State

@@ -3,6 +3,7 @@ import { MOCK_CASES } from '../constants';
 import { Case, Industry, CaseType, CaseStyle, Difficulty } from '../types';
 import { analyzeResume } from '../services/geminiService';
 import { FileText, Briefcase, Zap, Upload, ArrowRight, Info, Check, Loader2 } from 'lucide-react';
+import { ApiKeyModal } from './ApiKeyModal';
 
 interface SetupWizardProps {
   onStartCase: (selectedCase: Case, resumeText: string | null) => void;
@@ -31,6 +32,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // API Key Modal State
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+
   const toggleSelection = <T,>(current: T | null, value: T, setter: (val: T | null) => void) => {
     setter(current === value ? null : value);
   };
@@ -48,6 +53,28 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
       };
       reader.onerror = error => reject(error);
     });
+  };
+
+  const checkApiKeyAndProceed = (action: () => void) => {
+    // Check if key is available in env (dev) or sessionStorage (user provided)
+    const hasEnvKey = process.env.API_KEY && process.env.API_KEY.length > 0;
+    const hasSessionKey = sessionStorage.getItem("gemini_api_key");
+
+    if (hasEnvKey || hasSessionKey) {
+      action();
+    } else {
+      setPendingAction(() => action);
+      setShowApiKeyModal(true);
+    }
+  };
+
+  const handleSaveApiKey = (key: string) => {
+    sessionStorage.setItem("gemini_api_key", key);
+    setShowApiKeyModal(false);
+    if (pendingAction) {
+      pendingAction();
+      setPendingAction(null);
+    }
   };
 
   const handleQuickStart = () => {
@@ -94,7 +121,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
 
     } catch (error) {
       console.error("Resume analysis failed:", error);
-      alert("Failed to analyze resume. Please try again.");
+      alert("Failed to analyze resume. Please check your API key and file, then try again.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -137,6 +164,15 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <ApiKeyModal 
+        isOpen={showApiKeyModal} 
+        onSave={handleSaveApiKey} 
+        onCancel={() => {
+          setShowApiKeyModal(false);
+          setPendingAction(null);
+        }} 
+      />
+
       <div className="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row min-h-[800px]">
         
         {/* Left Sidebar */}
@@ -315,7 +351,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
                       : "We will select the best matching case from our database."}
                   </p>
                   <button
-                    onClick={handleQuickStart}
+                    onClick={() => checkApiKeyAndProceed(handleQuickStart)}
                     className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all transform hover:translate-y-[-2px] flex items-center justify-center space-x-2 shadow-lg shadow-slate-200"
                   >
                     <Briefcase size={20} />
@@ -351,7 +387,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
 
                 <div className="pt-6">
                   <button
-                    onClick={handleResumeStart}
+                    onClick={() => checkApiKeyAndProceed(handleResumeStart)}
                     disabled={!resumeFile || isAnalyzing}
                     className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2"
                   >
