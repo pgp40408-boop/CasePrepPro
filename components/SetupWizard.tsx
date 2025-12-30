@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MOCK_CASES } from '../constants';
 import { Case, Industry, CaseType, CaseStyle, Difficulty } from '../types';
 import { analyzeResume, generateSyntheticCase, extractCaseFromTranscript } from '../services/geminiService';
-import { FileText, Briefcase, Zap, Upload, ArrowRight, Check, Loader2, ChevronDown, Filter, Sparkles, MessageSquareText, PlayCircle, Key } from 'lucide-react';
+import { FileText, Briefcase, Zap, Upload, ArrowRight, Check, Loader2, ChevronDown, Filter, Sparkles, MessageSquareText, PlayCircle, Key, Mic, Award } from 'lucide-react';
 import { ApiKeyModal } from './ApiKeyModal';
 
 interface SetupWizardProps {
@@ -220,50 +220,70 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
       <div className="max-w-6xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[700px]">
         
         {/* Left Sidebar */}
-        <div className="w-full md:w-1/3 bg-slate-900 text-white p-10 flex flex-col justify-between relative overflow-hidden">
-          <div className="relative z-10">
-            <div className="flex items-center space-x-2 mb-8">
+        <div className="w-full md:w-1/3 bg-slate-900 text-white p-10 flex flex-col relative overflow-hidden">
+          <div className="relative z-10 flex-1 flex flex-col">
+            <div className="flex items-center space-x-2 mb-6">
               <Zap className="text-blue-400" size={28} />
               <h1 className="text-2xl font-bold tracking-tight">CasePrep Pro</h1>
             </div>
-            <p className="text-slate-300 text-base leading-relaxed mb-8">
-              Your AI-powered simulated interview partner. Practice real-world cases from top firms with randomized scenarios to ensure you are ready for anything.
+            <p className="text-slate-300 text-sm leading-relaxed mb-8">
+              Your AI-powered simulated interview partner. Practice real-world cases from top firms with randomized scenarios.
             </p>
-            <div className="space-y-4">
-               <div className="flex items-center space-x-3 text-sm text-slate-400">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                  <span>10+ Industries supported</span>
-               </div>
-               <div className="flex items-center space-x-3 text-sm text-slate-400">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
-                  <span>Real-time Voice & Audio</span>
-               </div>
-               <div className="flex items-center space-x-3 text-sm text-slate-400">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                  <span>Instant Grading & Feedback</span>
-               </div>
+
+            {/* How to Use Section */}
+            <div className="flex-1 space-y-6">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest border-b border-slate-700 pb-2">How to Use</h3>
+              
+              <div className="flex gap-4 group">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm shrink-0 group-hover:bg-blue-500 group-hover:text-white transition-colors">1</div>
+                <div>
+                  <h4 className="text-white font-medium text-sm flex items-center gap-2">Configure <Briefcase size={14} className="text-slate-500"/></h4>
+                  <p className="text-slate-400 text-xs leading-relaxed mt-1">
+                    Select your target industry & difficulty, or generate a custom case with AI.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 group">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-sm shrink-0 group-hover:bg-purple-500 group-hover:text-white transition-colors">2</div>
+                <div>
+                  <h4 className="text-white font-medium text-sm flex items-center gap-2">Interview <Mic size={14} className="text-slate-500"/></h4>
+                  <p className="text-slate-400 text-xs leading-relaxed mt-1">
+                    Speak or type to solve the case. The AI Partner plays the role of the interviewer.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 group">
+                <div className="w-8 h-8 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center font-bold text-sm shrink-0 group-hover:bg-green-500 group-hover:text-white transition-colors">3</div>
+                <div>
+                  <h4 className="text-white font-medium text-sm flex items-center gap-2">Feedback <Award size={14} className="text-slate-500"/></h4>
+                  <p className="text-slate-400 text-xs leading-relaxed mt-1">
+                    Receive instant, detailed grading on your Structure, Numeracy, and Communication.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 space-y-3 pt-6 border-t border-slate-800">
+              <button 
+                    onClick={onGoToDashboard}
+                    className="w-full flex items-center justify-between text-slate-400 hover:text-white transition-colors group p-2 rounded-lg hover:bg-slate-800"
+                  >
+                    <span className="text-sm font-semibold">View Performance Analytics</span>
+                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button 
+                    onClick={() => setShowApiKeyModal(true)}
+                    className="w-full flex items-center justify-between text-slate-400 hover:text-white transition-colors group p-2 rounded-lg hover:bg-slate-800"
+                  >
+                    <span className="text-sm font-semibold flex items-center gap-2"><Key size={14}/> Update API Key</span>
+              </button>
             </div>
           </div>
           
-          <div className="relative z-10 space-y-4 mt-8">
-            <button 
-                  onClick={onGoToDashboard}
-                  className="group flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"
-                >
-                  <span className="text-sm font-semibold">View Performance Analytics</span>
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-            <button 
-                  onClick={() => setShowApiKeyModal(true)}
-                  className="group flex items-center space-x-2 text-slate-400 hover:text-white transition-colors"
-                >
-                  <Key size={16} />
-                  <span className="text-sm font-semibold">Update API Key</span>
-            </button>
-          </div>
-          
-          <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-blue-600 rounded-full opacity-20 blur-3xl"></div>
-          <div className="absolute top-10 -left-20 w-48 h-48 bg-purple-600 rounded-full opacity-10 blur-3xl"></div>
+          <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-blue-600 rounded-full opacity-20 blur-3xl pointer-events-none"></div>
+          <div className="absolute top-10 -left-20 w-48 h-48 bg-purple-600 rounded-full opacity-10 blur-3xl pointer-events-none"></div>
         </div>
 
         {/* Right Content */}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Key, Lock, ArrowRight } from 'lucide-react';
+import { Key, Lock, ArrowRight, ExternalLink } from 'lucide-react';
 
 interface ApiKeyModalProps {
   isOpen: boolean;
@@ -20,10 +20,19 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCanc
             <Key size={24} />
           </div>
           <h2 className="text-xl font-bold text-slate-900 mb-2">Enter Gemini API Key</h2>
-          <p className="text-sm text-slate-500 mb-6">
-            To use this application, you need to provide your own Google Gemini API Key. 
-            It will be stored temporarily in your browser session and removed when you close the tab.
-          </p>
+          
+          <div className="bg-slate-50 p-4 rounded-lg mb-6 text-sm text-slate-600 border border-slate-200">
+             <p className="font-semibold mb-2 text-slate-800">How to get a free key:</p>
+             <ol className="list-decimal pl-4 space-y-1.5 marker:text-slate-400">
+               <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-600 underline hover:text-blue-800 inline-flex items-center">Google AI Studio <ExternalLink size={10} className="ml-0.5" /></a>.</li>
+               <li>Click <strong>"Create API key"</strong>.</li>
+               <li>Select <strong>"Create key in new project"</strong>.</li>
+               <li>Copy the key and paste it below.</li>
+             </ol>
+             <p className="text-xs text-slate-400 mt-3 border-t border-slate-200 pt-2">
+                *The Free Tier is sufficient for practice. Your key is stored locally in your browser session.
+             </p>
+          </div>
           
           <div className="space-y-4">
             <div>
@@ -64,11 +73,6 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSave, onCanc
               </button>
             </div>
           </div>
-        </div>
-        <div className="bg-slate-50 px-6 py-3 border-t border-slate-100">
-            <p className="text-xs text-center text-slate-400">
-                Get a key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">aistudio.google.com</a>
-            </p>
         </div>
       </div>
     </div>
