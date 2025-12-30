@@ -1,0 +1,7 @@
+{
+  "name": "CasePrep Pro",
+  "description": "AI-powered Management Consulting Interview Simulator using Gemini 1.5 Pro.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
