@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { MOCK_CASES } from '../constants';
 import { Case, Industry, CaseType, CaseStyle, Difficulty } from '../types';
 import { analyzeResume } from '../services/geminiService';
-import { FileText, Briefcase, Zap, Upload, ArrowRight, Info, Check, Settings, X, Key, ExternalLink, Loader2 } from 'lucide-react';
+import { FileText, Briefcase, Zap, Upload, ArrowRight, Info, Check, Loader2 } from 'lucide-react';
 
 interface SetupWizardProps {
   onStartCase: (selectedCase: Case, resumeText: string | null) => void;
@@ -21,11 +21,6 @@ const Tooltip: React.FC<{ text: string }> = ({ text }) => (
 
 const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard }) => {
   const [activeTab, setActiveTab] = useState<'quick' | 'resume'>('quick');
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  
-  // State to hold the action the user wanted to perform before being intercepted by the key check
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   
   // Selection States
   const [selectedIndustry, setSelectedIndustry] = useState<Industry | null>(null);
@@ -36,40 +31,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  useEffect(() => {
-    const storedKey = localStorage.getItem('user_gemini_key');
-    if (storedKey) setApiKey(storedKey);
-  }, []);
-
-  const saveApiKey = () => {
-    localStorage.setItem('user_gemini_key', apiKey);
-    setShowSettings(false);
-    
-    // Automatically trigger the pending action (Start Interview) if it exists
-    if (pendingAction) {
-      pendingAction();
-      setPendingAction(null);
-    }
-  };
-
-  const closeSettings = () => {
-    setShowSettings(false);
-    setPendingAction(null); // Clear pending action if user cancels
-  };
-
   const toggleSelection = <T,>(current: T | null, value: T, setter: (val: T | null) => void) => {
     setter(current === value ? null : value);
-  };
-
-  const checkKeyAndStart = (action: () => void) => {
-    if (!localStorage.getItem('user_gemini_key')) {
-      // Store the action to be executed after key is saved
-      // Using () => action to ensure React stores the function itself, not the result of calling it
-      setPendingAction(() => action);
-      setShowSettings(true);
-      return;
-    }
-    action();
   };
 
   // Helper to convert file to base64
@@ -88,57 +51,53 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
   };
 
   const handleQuickStart = () => {
-    checkKeyAndStart(() => {
-      let candidates = MOCK_CASES.filter(c => 
-        (!selectedIndustry || c.industry === selectedIndustry) &&
-        (!selectedCaseType || c.case_type === selectedCaseType) &&
-        (!selectedStyle || c.case_style === selectedStyle) &&
-        (!selectedDifficulty || c.difficulty === selectedDifficulty)
-      );
+    let candidates = MOCK_CASES.filter(c => 
+      (!selectedIndustry || c.industry === selectedIndustry) &&
+      (!selectedCaseType || c.case_type === selectedCaseType) &&
+      (!selectedStyle || c.case_style === selectedStyle) &&
+      (!selectedDifficulty || c.difficulty === selectedDifficulty)
+    );
 
-      if (candidates.length === 0) {
-         candidates = MOCK_CASES.filter(c => 
-          (!selectedIndustry || c.industry === selectedIndustry) &&
-          (!selectedCaseType || c.case_type === selectedCaseType)
-        );
-      }
-      
-      const pool = candidates.length > 0 ? candidates : MOCK_CASES;
-      const match = pool[Math.floor(Math.random() * pool.length)];
-      const finalCase = { ...match, ...(selectedStyle && { case_style: selectedStyle }) };
-      
-      onStartCase(finalCase, null);
-    });
+    if (candidates.length === 0) {
+        candidates = MOCK_CASES.filter(c => 
+        (!selectedIndustry || c.industry === selectedIndustry) &&
+        (!selectedCaseType || c.case_type === selectedCaseType)
+      );
+    }
+    
+    const pool = candidates.length > 0 ? candidates : MOCK_CASES;
+    const match = pool[Math.floor(Math.random() * pool.length)];
+    const finalCase = { ...match, ...(selectedStyle && { case_style: selectedStyle }) };
+    
+    onStartCase(finalCase, null);
   };
 
   const handleResumeStart = async () => {
     if (!resumeFile) return;
 
-    checkKeyAndStart(async () => {
-      setIsAnalyzing(true);
-      try {
-        const base64 = await fileToBase64(resumeFile);
-        const analysis = await analyzeResume(base64);
-        
-        console.log("Resume Analysis:", analysis);
+    setIsAnalyzing(true);
+    try {
+      const base64 = await fileToBase64(resumeFile);
+      const analysis = await analyzeResume(base64);
+      
+      console.log("Resume Analysis:", analysis);
 
-        // Find best match based on AI suggestion
-        let candidates = MOCK_CASES.filter(c => c.industry === analysis.suggested_industry);
-        if (candidates.length === 0) candidates = MOCK_CASES; // Fallback
-        
-        // Prefer matching difficulty if possible
-        const exactMatch = candidates.find(c => c.difficulty === analysis.suggested_difficulty);
-        const match = exactMatch || candidates[Math.floor(Math.random() * candidates.length)];
+      // Find best match based on AI suggestion
+      let candidates = MOCK_CASES.filter(c => c.industry === analysis.suggested_industry);
+      if (candidates.length === 0) candidates = MOCK_CASES; // Fallback
+      
+      // Prefer matching difficulty if possible
+      const exactMatch = candidates.find(c => c.difficulty === analysis.suggested_difficulty);
+      const match = exactMatch || candidates[Math.floor(Math.random() * candidates.length)];
 
-        onStartCase(match, analysis.summary);
+      onStartCase(match, analysis.summary);
 
-      } catch (error) {
-        console.error("Resume analysis failed:", error);
-        alert("Failed to analyze resume. Please check your API key or try a different file.");
-      } finally {
-        setIsAnalyzing(false);
-      }
-    });
+    } catch (error) {
+      console.error("Resume analysis failed:", error);
+      alert("Failed to analyze resume. Please check the console or try a different file.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   // --- Data for Levels ---
@@ -178,60 +137,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Settings className="text-blue-600" size={20} />
-                AI Configuration
-              </h2>
-              <button onClick={closeSettings} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Gemini API Key</label>
-                <div className="relative">
-                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input 
-                    type="password" 
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Enter your AI Studio Key"
-                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
-                  />
-                </div>
-                <p className="text-xs text-slate-500 mt-2">
-                  Your key is stored locally in your browser. We never see it.
-                </p>
-              </div>
-
-              <a 
-                href="https://aistudio.google.com/app/apikey" 
-                target="_blank" 
-                rel="noreferrer"
-                className="flex items-center text-xs text-blue-600 hover:underline gap-1"
-              >
-                <span>Get a free Gemini Key from Google AI Studio</span>
-                <ExternalLink size={10} />
-              </a>
-
-              <button 
-                onClick={saveApiKey}
-                disabled={!apiKey}
-                className="w-full py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Save & Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row min-h-[800px]">
         
         {/* Left Sidebar */}
@@ -252,13 +157,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
               >
                 <span>View Analytics</span>
                 <ArrowRight size={14} />
-              </button>
-              <button 
-                onClick={() => setShowSettings(true)}
-                className="text-sm text-slate-400 hover:text-white flex items-center space-x-1 transition-colors"
-              >
-                <Settings size={14} />
-                <span>AI Settings</span>
               </button>
             </div>
           </div>

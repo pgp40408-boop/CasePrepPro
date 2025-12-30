@@ -1,11 +1,11 @@
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
-import { Case, InterviewState, Message } from '../types';
+import { Case, InterviewState, Message, FeedbackReport } from '../types';
 
 // Helper to get key securely
 const getAiClient = (): GoogleGenAI => {
-  const apiKey = localStorage.getItem('user_gemini_key');
+  const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API Key missing. Please configure it in settings.");
+    throw new Error("API Key missing. Please configure it in process.env.API_KEY.");
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -18,6 +18,10 @@ const interviewStateSchema: Schema = {
       type: Type.STRING,
       enum: ['FIT', 'CASE_OPENING', 'CLARIFYING', 'FRAMEWORK', 'MATH', 'SYNTHESIS'],
       description: "The current phase of the case interview."
+    },
+    completion_percentage: {
+      type: Type.INTEGER,
+      description: "Estimated progress 0-100. Benchmark: FIT=10, OPENING=20, CLARIFYING=30, FRAMEWORK=50, MATH=75, SYNTHESIS=90, END=100."
     },
     data_revealed: {
       type: Type.ARRAY,
@@ -38,7 +42,7 @@ const interviewStateSchema: Schema = {
       description: "The actual spoken response to the candidate."
     }
   },
-  required: ['current_phase', 'data_revealed', 'math_status', 'interviewer_thought', 'message_content']
+  required: ['current_phase', 'completion_percentage', 'data_revealed', 'math_status', 'interviewer_thought', 'message_content']
 };
 
 export const generateInterviewResponse = async (
@@ -83,6 +87,7 @@ export const generateInterviewResponse = async (
     4. Move phases logically: FIT -> OPENING -> CLARIFYING -> FRAMEWORK -> MATH -> SYNTHESIS.
     5. In 'interviewer_thought', critique the user's last response based on the selected difficulty level.
     6. Keep 'message_content' professional and conversational.
+    7. Update 'completion_percentage' based on how close we are to the final recommendation.
 
     PHASE GUIDANCE:
     - FIT: Ask 1-2 questions about background.
@@ -126,6 +131,7 @@ export const generateInterviewResponse = async (
     console.error("Gemini API Error:", error);
     return {
       current_phase: 'FIT',
+      completion_percentage: 0,
       data_revealed: [],
       math_status: 'PENDING',
       interviewer_thought: "System Error encountered.",
@@ -133,6 +139,90 @@ export const generateInterviewResponse = async (
     };
   }
 };
+
+// --- FEEDBACK / GRADING ENGINE ---
+
+export const generateFeedback = async (
+  history: Message[],
+  currentCase: Case
+): Promise<FeedbackReport> => {
+  const ai = getAiClient();
+  const model = "gemini-3-pro-preview";
+
+  const feedbackSchema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      scores: {
+        type: Type.OBJECT,
+        properties: {
+          structuring: { type: Type.INTEGER },
+          numeracy: { type: Type.INTEGER },
+          judgment: { type: Type.INTEGER },
+          communication: { type: Type.INTEGER },
+        },
+        required: ['structuring', 'numeracy', 'judgment', 'communication']
+      },
+      qualitative_feedback: {
+        type: Type.OBJECT,
+        properties: {
+          strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+          areas_for_improvement: { type: Type.ARRAY, items: { type: Type.STRING } },
+        },
+        required: ['strengths', 'areas_for_improvement']
+      },
+      solution_comparison: {
+        type: Type.OBJECT,
+        properties: {
+          user_recommendation_summary: { type: Type.STRING },
+          actual_ground_truth_summary: { type: Type.STRING },
+        },
+        required: ['user_recommendation_summary', 'actual_ground_truth_summary']
+      }
+    },
+    required: ['scores', 'qualitative_feedback', 'solution_comparison']
+  };
+
+  const gradingPrompt = `
+    You are a Grading Algorithm for Management Consulting Interviews.
+    You must evaluate the Candidate's performance in the provided transcript against the Case Ground Truth.
+    
+    CASE CONTEXT:
+    ${JSON.stringify(currentCase)}
+
+    SCORING RUBRIC (1-10 Scale):
+    1. Structuring: Was the framework MECE (Mutually Exclusive, Collectively Exhaustive)? Did they break down the problem logically?
+    2. Numeracy: Were calculations accurate? Did they perform mental math quickly? Did they sanitize the data?
+    3. Judgment/Business Sense: Did they ask relevant questions? Did they drive towards the "Key Points" in the Ground Truth?
+    4. Communication: Was the synthesis clear? Did they lead the conversation (if candidate-led)?
+
+    TASK:
+    - Analyze the entire conversation history below.
+    - Provide strict but fair scores.
+    - Compare the User's final recommendation (if any) to the Ground Truth conclusion.
+    - If the user abandoned the case early, score based on what was completed, but penalize Structuring/Judgment if they missed the point.
+  `;
+
+  // Format history
+  const transcript = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+
+  const response = await ai.models.generateContent({
+    model: model,
+    contents: { parts: [{ text: `TRANSCRIPT TO GRADE:\n${transcript}` }] },
+    config: {
+      systemInstruction: gradingPrompt,
+      responseMimeType: "application/json",
+      responseSchema: feedbackSchema,
+      temperature: 0.4 // Lower temperature for consistent grading
+    }
+  });
+
+  if (response.text) {
+    return JSON.parse(response.text) as FeedbackReport;
+  }
+  
+  throw new Error("Failed to generate feedback");
+};
+
 
 // Return type for analysis
 export interface ResumeAnalysisResult {

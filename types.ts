@@ -81,10 +81,28 @@ export type InterviewPhase = 'FIT' | 'CASE_OPENING' | 'CLARIFYING' | 'FRAMEWORK'
 
 export interface InterviewState {
   current_phase: InterviewPhase;
+  completion_percentage: number; // 0 to 100
   data_revealed: string[];
   math_status: 'CORRECT' | 'INCORRECT' | 'PENDING';
   interviewer_thought: string;
   message_content: string;
+}
+
+export interface FeedbackReport {
+  scores: {
+    structuring: number; // 1-10
+    numeracy: number; // 1-10
+    judgment: number; // 1-10
+    communication: number; // 1-10
+  };
+  qualitative_feedback: {
+    strengths: string[];
+    areas_for_improvement: string[];
+  };
+  solution_comparison: {
+    user_recommendation_summary: string;
+    actual_ground_truth_summary: string;
+  };
 }
 
 export interface Message {
@@ -98,4 +116,5 @@ export enum AppView {
   DASHBOARD = 'DASHBOARD',
   SETUP = 'SETUP',
   INTERVIEW = 'INTERVIEW',
+  FEEDBACK = 'FEEDBACK',
 }

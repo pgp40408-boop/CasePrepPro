@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Send, PenTool, MessageSquare, ChevronRight, Loader2, Volume2, Radio, Square, PlayCircle, X } from 'lucide-react';
-import { Case, Message, InterviewState } from '../types';
-import { generateInterviewResponse, generateSpeech, decodeAudioData } from '../services/geminiService';
+import { Mic, MicOff, Send, PenTool, MessageSquare, ChevronRight, Loader2, Volume2, Radio, Square, PlayCircle, X, Flag } from 'lucide-react';
+import { Case, Message, InterviewState, FeedbackReport } from '../types';
+import { generateInterviewResponse, generateSpeech, decodeAudioData, generateFeedback } from '../services/geminiService';
 import { INITIAL_INTERVIEW_STATE } from '../constants';
 
 // --- Type Definitions for Web Speech API ---
@@ -40,10 +40,11 @@ declare global {
 interface InterviewInterfaceProps {
   activeCase: Case;
   resumeSummary: string | null;
+  onFinish: (transcript: Message[], feedback: FeedbackReport) => void;
   onExit: () => void;
 }
 
-const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, resumeSummary, onExit }) => {
+const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, resumeSummary, onFinish, onExit }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [whiteboardContent, setWhiteboardContent] = useState('');
@@ -54,6 +55,7 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
   const [interviewState, setInterviewState] = useState<InterviewState>(INITIAL_INTERVIEW_STATE);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -261,6 +263,23 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
     setIsLoading(false);
   };
 
+  // Handle End/Score Logic
+  const handleFinishInterview = async () => {
+    setIsGeneratingFeedback(true);
+    // Stop any audio/speech
+    if (audioSourceRef.current) try { audioSourceRef.current.stop(); } catch(e){}
+    recognitionRef.current?.stop();
+
+    try {
+      const feedback = await generateFeedback(messages, activeCase);
+      onFinish(messages, feedback);
+    } catch (error) {
+      console.error("Feedback generation failed:", error);
+      alert("Failed to generate report. Please try again.");
+      setIsGeneratingFeedback(false);
+    }
+  };
+
   // Update ref for the closure
   useEffect(() => {
     handleSendMessageRef.current = handleSendMessage;
@@ -309,6 +328,23 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
     }
   }, []);
 
+  if (isGeneratingFeedback) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-slate-50 space-y-6 animate-in fade-in duration-500">
+        <div className="relative">
+          <div className="w-24 h-24 rounded-full border-4 border-blue-100 border-t-blue-600 animate-spin"></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+             <PenTool className="text-blue-600" size={32} />
+          </div>
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-slate-800">Assessing Performance</h2>
+          <p className="text-slate-500">The Senior Partner is grading your transcript...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-white relative">
       <style>{`
@@ -320,11 +356,28 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
 
       {/* Header */}
       <header className="flex-none h-14 border-b border-slate-200 flex items-center justify-between px-6 bg-slate-50">
-        <div className="flex items-center space-x-2">
-           <span className="font-bold text-slate-700">CasePrep Pro</span>
-           <span className="text-slate-400">/</span>
-           <span className="text-sm font-medium text-slate-600 truncate max-w-[150px] md:max-w-xs">{activeCase.title}</span>
+        <div className="flex items-center space-x-4 flex-1">
+           <div className="flex items-center space-x-2">
+            <span className="font-bold text-slate-700">CasePrep Pro</span>
+            <span className="text-slate-400">/</span>
+            <span className="text-sm font-medium text-slate-600 truncate max-w-[150px] md:max-w-xs">{activeCase.title}</span>
+           </div>
+           
+           {/* Progress Bar */}
+           <div className="hidden md:flex flex-col w-48 ml-4">
+             <div className="flex justify-between text-[10px] text-slate-500 mb-1 font-semibold uppercase">
+               <span>Progress</span>
+               <span>{interviewState.completion_percentage}%</span>
+             </div>
+             <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+               <div 
+                 className="bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out" 
+                 style={{ width: `${interviewState.completion_percentage}%` }}
+               ></div>
+             </div>
+           </div>
         </div>
+
         <div className="flex items-center space-x-4">
            {/* Phase Indicator */}
            <div className="hidden md:flex items-center space-x-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-100">
@@ -347,7 +400,17 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
              <span className="text-xs font-bold">{isLiveMode ? 'Stop Live Mode' : 'Start Live Mode'}</span>
            </button>
 
-           <button onClick={onExit} className="text-sm text-slate-500 hover:text-red-600 font-medium ml-2">Exit</button>
+           <button 
+             onClick={handleFinishInterview} 
+             className="flex items-center space-x-1 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors"
+           >
+             <Flag size={12} />
+             <span>Finish & Grade</span>
+           </button>
+           
+           <button onClick={onExit} className="text-slate-400 hover:text-red-500 transition-colors">
+              <X size={20} />
+           </button>
         </div>
       </header>
 

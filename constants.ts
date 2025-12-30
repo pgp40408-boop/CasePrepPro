@@ -97,6 +97,7 @@ export const MOCK_CASES: Case[] = [
 
 export const INITIAL_INTERVIEW_STATE: InterviewState = {
   current_phase: 'FIT',
+  completion_percentage: 0,
   data_revealed: [],
   math_status: 'PENDING',
   interviewer_thought: "Initial state. Waiting for user introduction.",
