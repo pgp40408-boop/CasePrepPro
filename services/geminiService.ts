@@ -24,6 +24,47 @@ const getAiClient = (): GoogleGenAI => {
   return new GoogleGenAI({ apiKey });
 };
 
+// --- FALLBACK HELPER ---
+// Tries the primary model, falls back to secondary if Rate Limited (429) or other errors
+async function generateWithFallback(
+  ai: GoogleGenAI,
+  params: {
+    primaryModel: string;
+    fallbackModel: string;
+    contents: any;
+    config: any;
+  }
+) {
+  try {
+    return await ai.models.generateContent({
+      model: params.primaryModel,
+      contents: params.contents,
+      config: params.config
+    });
+  } catch (error: any) {
+    // Check for various rate limit indicators
+    const errorString = JSON.stringify(error);
+    const isRateLimit = 
+      error.message?.includes('429') || 
+      error.message?.includes('Resource has been exhausted') ||
+      error.status === 429 ||
+      error.code === 429 ||
+      error.status === 503 ||
+      errorString.includes('429') ||
+      errorString.includes('RESOURCE_EXHAUSTED');
+
+    if (isRateLimit) {
+      console.warn(`[Gemini Service] Primary model ${params.primaryModel} failed (Rate Limit). Falling back to ${params.fallbackModel}.`);
+      return await ai.models.generateContent({
+        model: params.fallbackModel,
+        contents: params.contents,
+        config: params.config
+      });
+    }
+    throw error;
+  }
+}
+
 // Schema Definition for Interview State
 const interviewStateSchema: Schema = {
   type: Type.OBJECT,
@@ -66,7 +107,9 @@ export const generateInterviewResponse = async (
 ): Promise<InterviewState> => {
 
   const ai = getAiClient();
-  const model = "gemini-3-pro-preview"; // Optimized for complex text tasks (reasoning)
+  // Downgraded to Flash series for better availability on free tier
+  const primaryModel = "gemini-3-flash-preview"; 
+  const fallbackModel = "gemini-2.5-flash-latest"; 
 
   // Style-specific instructions
   let styleInstruction = "";
@@ -125,9 +168,10 @@ export const generateInterviewResponse = async (
   }
 
   try {
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: contents,
+    const response = await generateWithFallback(ai, {
+      primaryModel,
+      fallbackModel,
+      contents,
       config: {
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
@@ -198,7 +242,9 @@ export const generateSyntheticCase = async (
   style?: string
 ): Promise<Case> => {
   const ai = getAiClient();
-  const model = "gemini-3-pro-preview"; 
+  // Using Flash models for generation to ensure it works on free tier
+  const primaryModel = "gemini-3-flash-preview"; 
+  const fallbackModel = "gemini-2.5-flash-latest"; 
 
   const prompt = `
     Generate a unique, realistic Management Consulting Case Study.
@@ -215,8 +261,9 @@ export const generateSyntheticCase = async (
     - Ensure the case is solvable within 30 minutes.
   `;
 
-  const response = await ai.models.generateContent({
-    model: model,
+  const response = await generateWithFallback(ai, {
+    primaryModel,
+    fallbackModel,
     contents: { parts: [{ text: prompt }] },
     config: {
       responseMimeType: "application/json",
@@ -234,7 +281,8 @@ export const generateSyntheticCase = async (
 
 export const extractCaseFromTranscript = async (transcript: string): Promise<Case> => {
   const ai = getAiClient();
-  const model = "gemini-3-pro-preview"; // Use Pro to handle large context
+  const primaryModel = "gemini-3-flash-preview"; 
+  const fallbackModel = "gemini-2.5-flash-latest"; 
 
   const prompt = `
     Analyze the following interview transcript and extract a structured Case Study object.
@@ -252,8 +300,9 @@ export const extractCaseFromTranscript = async (transcript: string): Promise<Cas
     6. Ignore small talk. Focus on the core business problem.
   `;
 
-  const response = await ai.models.generateContent({
-    model: model,
+  const response = await generateWithFallback(ai, {
+    primaryModel,
+    fallbackModel,
     contents: { parts: [{ text: prompt }] },
     config: {
       responseMimeType: "application/json",
@@ -304,7 +353,8 @@ export const generateFeedback = async (
   currentCase: Case
 ): Promise<FeedbackReport> => {
   const ai = getAiClient();
-  const model = "gemini-3-pro-preview";
+  const primaryModel = "gemini-3-flash-preview"; 
+  const fallbackModel = "gemini-2.5-flash-latest"; 
 
   const feedbackSchema: Schema = {
     type: Type.OBJECT,
@@ -362,8 +412,9 @@ export const generateFeedback = async (
   // Format history
   const transcript = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
-  const response = await ai.models.generateContent({
-    model: model,
+  const response = await generateWithFallback(ai, {
+    primaryModel,
+    fallbackModel,
     contents: { parts: [{ text: `TRANSCRIPT TO GRADE:\n${transcript}` }] },
     config: {
       systemInstruction: gradingPrompt,
