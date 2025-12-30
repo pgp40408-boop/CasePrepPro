@@ -6,12 +6,20 @@ const getAiClient = (): GoogleGenAI => {
   // Check session storage first (User provided via UI), then env var (Dev provided)
   // sessionStorage is cleared when the tab is closed.
   const sessionKey = typeof window !== 'undefined' ? sessionStorage.getItem("gemini_api_key") : null;
-  const envKey = process.env.API_KEY;
   
+  // Safely check for process.env to avoid "process is not defined" in some browser envs
+  let envKey = null;
+  try {
+    envKey = process.env.API_KEY;
+  } catch (e) {
+    // process.env not available
+  }
+  
+  // User input takes precedence
   const apiKey = sessionKey || envKey;
 
   if (!apiKey) {
-    throw new Error("API Key missing. Please provide a key.");
+    throw new Error("API Key missing. Please provide a key via the Settings.");
   }
   return new GoogleGenAI({ apiKey });
 };

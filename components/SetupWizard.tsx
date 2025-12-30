@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { MOCK_CASES } from '../constants';
 import { Case, Industry, CaseType, CaseStyle, Difficulty } from '../types';
 import { analyzeResume, generateSyntheticCase, extractCaseFromTranscript } from '../services/geminiService';
-import { FileText, Briefcase, Zap, Upload, ArrowRight, Check, Loader2, ChevronDown, Filter, Sparkles, MessageSquareText, PlayCircle } from 'lucide-react';
+import { FileText, Briefcase, Zap, Upload, ArrowRight, Check, Loader2, ChevronDown, Filter, Sparkles, MessageSquareText, PlayCircle, Key } from 'lucide-react';
 import { ApiKeyModal } from './ApiKeyModal';
 
 interface SetupWizardProps {
@@ -48,7 +48,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
   };
 
   const checkApiKeyAndProceed = (action: () => void) => {
-    const hasEnvKey = process.env.API_KEY && process.env.API_KEY.length > 0;
+    let hasEnvKey = false;
+    try {
+        hasEnvKey = !!process.env.API_KEY && process.env.API_KEY.length > 0;
+    } catch(e) {
+        // process.env not available in browser
+    }
+
     const hasSessionKey = sessionStorage.getItem("gemini_api_key");
 
     if (hasEnvKey || hasSessionKey) {
@@ -239,13 +245,22 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
             </div>
           </div>
           
-          <button 
-                onClick={onGoToDashboard}
-                className="relative z-10 mt-8 group flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"
-              >
-                <span className="text-sm font-semibold">View Performance Analytics</span>
-                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-          </button>
+          <div className="relative z-10 space-y-4 mt-8">
+            <button 
+                  onClick={onGoToDashboard}
+                  className="group flex items-center space-x-2 text-blue-300 hover:text-white transition-colors"
+                >
+                  <span className="text-sm font-semibold">View Performance Analytics</span>
+                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <button 
+                  onClick={() => setShowApiKeyModal(true)}
+                  className="group flex items-center space-x-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  <Key size={16} />
+                  <span className="text-sm font-semibold">Update API Key</span>
+            </button>
+          </div>
           
           <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-blue-600 rounded-full opacity-20 blur-3xl"></div>
           <div className="absolute top-10 -left-20 w-48 h-48 bg-purple-600 rounded-full opacity-10 blur-3xl"></div>
