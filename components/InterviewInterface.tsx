@@ -417,8 +417,8 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
       {/* Main Split View */}
       <div className="flex-1 flex overflow-hidden relative">
         
-        {/* Left: Chat Interface */}
-        <div className="w-1/2 flex flex-col border-r border-slate-200 bg-slate-50/50">
+        {/* Left: Chat Interface (Full width on mobile, half on desktop) */}
+        <div className="w-full md:w-1/2 flex flex-col border-r border-slate-200 bg-slate-50/50">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -559,8 +559,8 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
           </div>
         </div>
 
-        {/* Right: Whiteboard */}
-        <div className="w-1/2 flex flex-col bg-white">
+        {/* Right: Whiteboard (Hidden on mobile) */}
+        <div className="hidden md:flex md:w-1/2 flex-col bg-white">
           <div className="h-10 border-b border-slate-100 flex items-center px-4 justify-between bg-slate-50">
              <div className="flex items-center space-x-2 text-slate-500">
                 <PenTool size={16} />

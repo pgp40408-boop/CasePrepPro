@@ -4,10 +4,8 @@ import { Case, InterviewState, Message, FeedbackReport, Industry, CaseType, Diff
 // Helper to get key securely
 const getAiClient = (): GoogleGenAI => {
   // Check session storage first (User provided via UI), then env var (Dev provided)
-  // sessionStorage is cleared when the tab is closed.
   const sessionKey = typeof window !== 'undefined' ? sessionStorage.getItem("gemini_api_key") : null;
   
-  // Safely check for process.env to avoid "process is not defined" in some browser envs
   let envKey = null;
   try {
     envKey = process.env.API_KEY;
@@ -15,7 +13,6 @@ const getAiClient = (): GoogleGenAI => {
     // process.env not available
   }
   
-  // User input takes precedence
   const apiKey = sessionKey || envKey;
 
   if (!apiKey) {
@@ -42,7 +39,6 @@ async function generateWithFallback(
       config: params.config
     });
   } catch (error: any) {
-    // Check for various rate limit indicators
     const errorString = JSON.stringify(error);
     const isRateLimit = 
       error.message?.includes('429') || 
@@ -64,6 +60,10 @@ async function generateWithFallback(
     throw error;
   }
 }
+
+// Model Constants
+const PRO_MODEL = "gemini-3-pro-preview";
+const FLASH_MODEL = "gemini-3-flash-preview";
 
 // Schema Definition for Interview State
 const interviewStateSchema: Schema = {
@@ -107,10 +107,7 @@ export const generateInterviewResponse = async (
 ): Promise<InterviewState> => {
 
   const ai = getAiClient();
-  // Downgraded to Flash series for better availability on free tier
-  const primaryModel = "gemini-3-flash-preview"; 
-  const fallbackModel = "gemini-2.5-flash-latest"; 
-
+  
   // Style-specific instructions
   let styleInstruction = "";
   if (currentCase.case_style === 'Interviewer-Led (McKinsey Style)') {
@@ -119,7 +116,6 @@ export const generateInterviewResponse = async (
     styleInstruction = "STYLE: Candidate-Led (BCG/Bain). Sit back. Do NOT volunteer information. Wait for the user to ask for data (e.g., 'I would like to look at the revenue data'). If they are stuck, provide only minimal nudges.";
   }
 
-  // Construct the System Instruction
   const systemInstruction = `
     You are a Senior Partner at a top consulting firm conducting a case interview. 
     You are tough but fair. Your goal is to evaluate the candidate's problem-solving skills, structure, and communication.
@@ -139,22 +135,14 @@ export const generateInterviewResponse = async (
 
     INSTRUCTIONS:
     1. Maintain the "InterviewState" JSON structure at all times.
-    2. Do NOT reveal data from the Ground Truth unless the user asks specific, relevant questions (especially in Candidate-Led mode).
+    2. Do NOT reveal data from the Ground Truth unless the user asks specific, relevant questions.
     3. If the user makes a math error, flag math_status as 'INCORRECT' and gently nudge them.
     4. Move phases logically: FIT -> OPENING -> CLARIFYING -> FRAMEWORK -> MATH -> SYNTHESIS.
     5. In 'interviewer_thought', critique the user's last response based on the selected difficulty level.
     6. Keep 'message_content' professional and conversational.
-    7. Update 'completion_percentage' based on how close we are to the final recommendation.
-
-    PHASE GUIDANCE:
-    - FIT: Ask 1-2 questions about background.
-    - CASE_OPENING: Read the case overview.
-    - FRAMEWORK: Wait for the user to structure their approach.
-    - MATH: Provide data only when asked. Verify calculations.
-    - SYNTHESIS: Ask for a final recommendation.
+    7. Update 'completion_percentage' based on progress.
   `;
 
-  // Format history for Gemini
   let contents = history.map(msg => ({
     role: msg.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: msg.content }]
@@ -169,8 +157,8 @@ export const generateInterviewResponse = async (
 
   try {
     const response = await generateWithFallback(ai, {
-      primaryModel,
-      fallbackModel,
+      primaryModel: PRO_MODEL,
+      fallbackModel: FLASH_MODEL,
       contents,
       config: {
         systemInstruction: systemInstruction,
@@ -200,7 +188,6 @@ export const generateInterviewResponse = async (
 
 // --- CASE GENERATION & EXTRACTION ---
 
-// Shared Schema for Case Object
 const caseSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -212,9 +199,8 @@ const caseSchema: Schema = {
     ground_truth_json: {
       type: Type.OBJECT,
       properties: {
-        overview: { type: Type.STRING, description: "The opening prompt read to the candidate." },
+        overview: { type: Type.STRING },
         framework_buckets: { type: Type.ARRAY, items: { type: Type.STRING } },
-        // Using array of KV pairs because Type.OBJECT requires defined properties in schema
         math_data_points: { 
           type: Type.ARRAY, 
           items: { 
@@ -224,8 +210,7 @@ const caseSchema: Schema = {
               value: { type: Type.STRING }
             },
             required: ['key', 'value']
-          },
-          description: "Key numbers provided. e.g. [{key: 'revenue', value: '100M'}]" 
+          }
         },
         conclusion_key_points: { type: Type.ARRAY, items: { type: Type.STRING } },
       },
@@ -242,28 +227,24 @@ export const generateSyntheticCase = async (
   style?: string
 ): Promise<Case> => {
   const ai = getAiClient();
-  // Using Flash models for generation to ensure it works on free tier
-  const primaryModel = "gemini-3-flash-preview"; 
-  const fallbackModel = "gemini-2.5-flash-latest"; 
 
   const prompt = `
     Generate a unique, realistic Management Consulting Case Study.
     
     Constraints:
-    - Industry: ${industry || "Random, but focus on modern industries like Tech, EV, AI, or BioTech"}
+    - Industry: ${industry || "Random (Tech, EV, AI, BioTech)"}
     - Case Type: ${caseType || "Random"}
     - Difficulty: ${difficulty || "Intermediate"}
     - Style: ${style || "Random"}
 
     Requirements:
-    - The 'math_data_points' should contain 3-5 specific numbers needed to solve a quantitative problem (e.g. key: "Revenue 2024", value: "100M").
-    - The 'overview' should be the initial problem statement given to the candidate.
-    - Ensure the case is solvable within 30 minutes.
+    - 'math_data_points' should contain 3-5 specific numbers for calculations.
+    - 'overview' is the initial prompt.
   `;
 
   const response = await generateWithFallback(ai, {
-    primaryModel,
-    fallbackModel,
+    primaryModel: PRO_MODEL,
+    fallbackModel: FLASH_MODEL,
     contents: { parts: [{ text: prompt }] },
     config: {
       responseMimeType: "application/json",
@@ -281,33 +262,20 @@ export const generateSyntheticCase = async (
 
 export const extractCaseFromTranscript = async (transcript: string): Promise<Case> => {
   const ai = getAiClient();
-  const primaryModel = "gemini-3-flash-preview"; 
-  const fallbackModel = "gemini-2.5-flash-latest"; 
 
   const prompt = `
     Analyze the following interview transcript and extract a structured Case Study object.
-    
-    TRANSCRIPT START:
-    ${transcript.substring(0, 30000)} 
-    TRANSCRIPT END
-
-    INSTRUCTIONS:
-    1. Infer the 'industry', 'case_type', and 'difficulty' from the context.
-    2. Extract the 'overview' (the initial problem statement).
-    3. Extract 'math_data_points' by finding numbers/facts the interviewer revealed (e.g. "Revenue is $50M").
-    4. Extract 'framework_buckets' based on how the candidate successfully structured the problem.
-    5. Extract 'conclusion_key_points' from the final recommendation.
-    6. Ignore small talk. Focus on the core business problem.
+    TRANSCRIPT: ${transcript.substring(0, 30000)}
   `;
 
   const response = await generateWithFallback(ai, {
-    primaryModel,
-    fallbackModel,
+    primaryModel: PRO_MODEL,
+    fallbackModel: FLASH_MODEL,
     contents: { parts: [{ text: prompt }] },
     config: {
       responseMimeType: "application/json",
       responseSchema: caseSchema,
-      temperature: 0.2, // Low temp for extraction accuracy
+      temperature: 0.2,
     }
   });
 
@@ -318,11 +286,8 @@ export const extractCaseFromTranscript = async (transcript: string): Promise<Cas
   throw new Error("Failed to extract case from transcript");
 }
 
-// Helper to transform schema output to app Type
 const parseCaseResponse = (jsonString: string): Case => {
   const rawData = JSON.parse(jsonString);
-    
-  // Transform math_data_points array back to math_data object for the application
   const math_data: Record<string, string | number> = {};
   if (rawData.ground_truth_json?.math_data_points) {
     rawData.ground_truth_json.math_data_points.forEach((item: {key: string, value: string}) => {
@@ -353,8 +318,6 @@ export const generateFeedback = async (
   currentCase: Case
 ): Promise<FeedbackReport> => {
   const ai = getAiClient();
-  const primaryModel = "gemini-3-flash-preview"; 
-  const fallbackModel = "gemini-2.5-flash-latest"; 
 
   const feedbackSchema: Schema = {
     type: Type.OBJECT,
@@ -391,36 +354,21 @@ export const generateFeedback = async (
 
   const gradingPrompt = `
     You are a Grading Algorithm for Management Consulting Interviews.
-    You must evaluate the Candidate's performance in the provided transcript against the Case Ground Truth.
-    
-    CASE CONTEXT:
-    ${JSON.stringify(currentCase)}
-
-    SCORING RUBRIC (1-10 Scale):
-    1. Structuring: Was the framework MECE (Mutually Exclusive, Collectively Exhaustive)? Did they break down the problem logically?
-    2. Numeracy: Were calculations accurate? Did they perform mental math quickly? Did they sanitize the data?
-    3. Judgment/Business Sense: Did they ask relevant questions? Did they drive towards the "Key Points" in the Ground Truth?
-    4. Communication: Was the synthesis clear? Did they lead the conversation (if candidate-led)?
-
-    TASK:
-    - Analyze the entire conversation history below.
-    - Provide strict but fair scores.
-    - Compare the User's final recommendation (if any) to the Ground Truth conclusion.
-    - If the user abandoned the case early, score based on what was completed, but penalize Structuring/Judgment if they missed the point.
+    SCORING RUBRIC (1-10 Scale). Compare User vs Ground Truth.
+    CASE CONTEXT: ${JSON.stringify(currentCase)}
   `;
 
-  // Format history
   const transcript = history.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
 
   const response = await generateWithFallback(ai, {
-    primaryModel,
-    fallbackModel,
+    primaryModel: PRO_MODEL,
+    fallbackModel: FLASH_MODEL,
     contents: { parts: [{ text: `TRANSCRIPT TO GRADE:\n${transcript}` }] },
     config: {
       systemInstruction: gradingPrompt,
       responseMimeType: "application/json",
       responseSchema: feedbackSchema,
-      temperature: 0.4 // Lower temperature for consistent grading
+      temperature: 0.4
     }
   });
 
@@ -431,8 +379,6 @@ export const generateFeedback = async (
   throw new Error("Failed to generate feedback");
 };
 
-
-// Return type for analysis
 export interface ResumeAnalysisResult {
   summary: string;
   suggested_industry: string;
@@ -441,27 +387,26 @@ export interface ResumeAnalysisResult {
 
 export const analyzeResume = async (base64Pdf: string): Promise<ResumeAnalysisResult> => {
   const ai = getAiClient();
-  // Using gemini-3-flash-preview for fast document analysis
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: {
-      parts: [
-        {
-          inlineData: {
-            mimeType: 'application/pdf',
-            data: base64Pdf
-          }
-        },
-        {
-          text: `Analyze this resume for a management consulting interview.
-          1. Summarize the candidate's background in 2 sentences.
-          2. Suggest the best matching Industry from this list: [Technology, Media & Telecom (TMT), Financial Services, Consumer & Retail (CPG), Healthcare & Life Sciences, Energy & Environment, Industrials & Manufacturing].
-          3. Suggest a Difficulty level based on experience: [Beginner, Intermediate, Advanced (Partner Level)].
-          
-          Return JSON.`
-        }
-      ]
-    },
+  
+  const textPart = {
+    text: `Analyze this resume for a management consulting interview.
+    1. Summarize the candidate's background in 2 sentences.
+    2. Suggest Industry from: [Technology, TMT, Financial Services, CPG, Healthcare, Energy, Industrials].
+    3. Suggest Difficulty: [Beginner, Intermediate, Advanced].
+    Return JSON.`
+  };
+  
+  const filePart = {
+    inlineData: {
+      mimeType: 'application/pdf',
+      data: base64Pdf
+    }
+  };
+
+  const response = await generateWithFallback(ai, {
+    primaryModel: PRO_MODEL,
+    fallbackModel: FLASH_MODEL,
+    contents: { parts: [filePart, textPart] },
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -494,8 +439,6 @@ function base64ToUint8Array(base64: string) {
   return bytes;
 }
 
-// Gemini Live/TTS returns raw PCM 24kHz Mono 16-bit
-// This helper is used by the frontend to decode the raw bytes
 export async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
@@ -515,7 +458,6 @@ export async function decodeAudioData(
   return buffer;
 }
 
-// Returns raw audio bytes. Decoding happens in the UI component to use the active AudioContext.
 export const generateSpeech = async (text: string): Promise<Uint8Array> => {
   const ai = getAiClient();
   const response = await ai.models.generateContent({
