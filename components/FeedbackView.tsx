@@ -26,17 +26,17 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ feedback, activeCase, onGoH
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         
         {/* Header */}
-        <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Performance Report</h1>
             <p className="text-slate-500 text-sm mt-1">{activeCase.title} • {activeCase.case_type}</p>
           </div>
-          <div className="flex space-x-3">
-            <button onClick={onGoHome} className="flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium">
+          <div className="flex space-x-3 w-full sm:w-auto">
+            <button onClick={onGoHome} className="flex-1 sm:flex-none justify-center flex items-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium">
               <Home size={16} />
               <span>Dashboard</span>
             </button>
@@ -46,7 +46,7 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ feedback, activeCase, onGoH
         {/* Top Section: Charts & Scores */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Radar Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center min-h-[300px]">
+          <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center min-h-[300px]">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4">Skill Radar</h3>
             <div className="w-full h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -61,9 +61,9 @@ const FeedbackView: React.FC<FeedbackViewProps> = ({ feedback, activeCase, onGoH
           </div>
 
           {/* Detailed Scores */}
-          <div className="md:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <div className="md:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-6">Assessment Breakdown</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
               {Object.entries(feedback.scores).map(([key, value]) => {
                 const score = value as number;
                 return (

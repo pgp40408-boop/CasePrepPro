@@ -355,12 +355,12 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
       `}</style>
 
       {/* Header */}
-      <header className="flex-none h-14 border-b border-slate-200 flex items-center justify-between px-6 bg-slate-50">
+      <header className="flex-none h-14 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 bg-slate-50">
         <div className="flex items-center space-x-4 flex-1">
            <div className="flex items-center space-x-2">
-            <span className="font-bold text-slate-700">CasePrep Pro</span>
-            <span className="text-slate-400">/</span>
-            <span className="text-sm font-medium text-slate-600 truncate max-w-[150px] md:max-w-xs">{activeCase.title}</span>
+            <span className="font-bold text-slate-700 hidden xs:inline">CasePrep Pro</span>
+            <span className="text-slate-400 hidden xs:inline">/</span>
+            <span className="text-sm font-medium text-slate-600 truncate max-w-[120px] md:max-w-xs">{activeCase.title}</span>
            </div>
            
            {/* Progress Bar */}
@@ -378,7 +378,7 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
            </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 md:space-x-4">
            {/* Phase Indicator */}
            <div className="hidden md:flex items-center space-x-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-100">
              <span>PHASE:</span>
@@ -397,7 +397,7 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
              }`}
            >
              {isLiveMode ? <Square size={14} fill="currentColor" className="animate-pulse" /> : <Radio size={16} />}
-             <span className="text-xs font-bold">{isLiveMode ? 'Stop Live Mode' : 'Start Live Mode'}</span>
+             <span className="text-xs font-bold hidden sm:inline">{isLiveMode ? 'Stop Live Mode' : 'Start Live Mode'}</span>
            </button>
 
            <button 
@@ -405,7 +405,7 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
              className="flex items-center space-x-1 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-colors"
            >
              <Flag size={12} />
-             <span>Finish & Grade</span>
+             <span className="hidden sm:inline">Finish & Grade</span>
            </button>
            
            <button onClick={onExit} className="text-slate-400 hover:text-red-500 transition-colors">
@@ -422,7 +422,7 @@ const InterviewInterface: React.FC<InterviewInterfaceProps> = ({ activeCase, res
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`relative max-w-[85%] rounded-2xl p-4 shadow-sm ${
+                <div className={`relative max-w-[90%] md:max-w-[85%] rounded-2xl p-4 shadow-sm ${
                   msg.role === 'user' 
                     ? 'bg-blue-600 text-white rounded-br-none' 
                     : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'

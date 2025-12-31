@@ -187,7 +187,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-2 md:p-4">
       <ApiKeyModal 
         isOpen={showApiKeyModal} 
         onSave={handleSaveApiKey} 
@@ -197,10 +197,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
         }} 
       />
 
-      <div className="max-w-6xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[750px]">
+      <div className="max-w-6xl w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-0 md:min-h-[750px]">
         
         {/* Left Sidebar */}
-        <div className="w-full md:w-1/3 bg-slate-900 text-white p-10 flex flex-col relative overflow-hidden">
+        <div className="w-full md:w-1/3 bg-slate-900 text-white p-6 md:p-10 flex flex-col relative overflow-hidden shrink-0">
           <div className="relative z-10 flex-1 flex flex-col">
             <div className="flex items-center space-x-2 mb-6">
               <Zap className="text-blue-400" size={28} />
@@ -267,7 +267,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
 
         {/* Right Content */}
         <div className="w-full md:w-2/3 flex flex-col">
-          <div className="flex border-b border-slate-100 bg-white sticky top-0 z-20 px-8 pt-8 space-x-8">
+          <div className="flex border-b border-slate-100 bg-white sticky top-0 z-20 px-4 pt-6 md:px-8 md:pt-8 space-x-8">
             <button
               onClick={() => setActiveTab('create')}
               className={`pb-4 text-sm font-bold tracking-wide transition-colors relative ${
@@ -288,19 +288,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
             </button>
           </div>
 
-          <div className="flex-1 p-8 md:p-10 bg-slate-50/50 overflow-y-auto">
+          <div className="flex-1 p-4 md:p-10 bg-slate-50/50 overflow-y-auto">
             {activeTab === 'create' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 
                 {/* PART 1: CONFIGURE */}
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                   <div className="flex items-center justify-between mb-6">
+                <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm">
+                   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                       <div className="flex items-center space-x-2">
                          <Filter size={20} className="text-blue-600" />
                          <h2 className="text-lg font-bold text-slate-800">Configure Parameters</h2>
                       </div>
                       
-                      <div className="flex items-center space-x-3 bg-slate-100 p-1.5 rounded-lg">
+                      <div className="flex items-center self-start sm:self-auto space-x-3 bg-slate-100 p-1.5 rounded-lg">
                         <span className={`text-xs font-bold px-2 ${!useAiGenerator ? 'text-slate-600' : 'text-slate-400'}`}>Database</span>
                         <button 
                           onClick={() => setUseAiGenerator(!useAiGenerator)}
@@ -416,7 +416,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onStartCase, onGoToDashboard 
                 </div>
 
                 {/* PART 2: TRANSCRIPT */}
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
+                <div className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col">
                     <div className="flex items-center space-x-2 mb-4 text-slate-800">
                        <MessageSquareText size={20} className="text-blue-600" />
                        <h3 className="font-bold">Import Existing Transcript</h3>

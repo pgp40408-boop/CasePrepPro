@@ -27,9 +27,9 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">Performance Analytics</h1>
+    <div className="p-4 md:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 sm:gap-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Performance Analytics</h1>
         <button onClick={onBack} className="text-sm font-medium text-slate-500 hover:text-slate-800 underline">
           Back to Menu
         </button>
